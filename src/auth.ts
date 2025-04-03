@@ -13,7 +13,8 @@ const SCOPES = [
   'playlist-modify-private',
   'playlist-modify-public',
   'user-read-private',
-  'user-read-email'
+  'user-read-email',
+  'user-read-recently-played'
 ];
 
 const spotifyApi = new SpotifyWebApi({

@@ -210,4 +210,81 @@ export async function removeTracksFromMirrorPlaylist(trackUris: string[]): Promi
   }
 }
 
+/**
+ * Retrieves the last 100 recently played tracks with their played timestamps
+ * by making multiple API calls with pagination
+ * @returns Array of recently played tracks with their URIs and played timestamps
+ */
+export async function getRecentlyPlayedTracks(): Promise<Array<{
+  uri: string;
+  playedAt: Date;
+}>> {
+  await ensureAccessToken();
+
+  const tracks: Array<{
+    uri: string;
+    playedAt: Date;
+  }> = [];
+
+  try {
+    // Spotify API limits to 50 tracks per request, so we need to make multiple requests
+    // to get up to 100 tracks
+    const limit = 50; // Maximum allowed by Spotify API
+    let beforeTimestamp: number | undefined;
+    let moreTracksAvailable = true;
+    let requestCount = 0;
+    
+    // Make multiple requests until we have 100 tracks or no more data is available
+    while (moreTracksAvailable && tracks.length < 100 && requestCount < 3) {
+      requestCount++;
+      
+      // Prepare request options
+      const options: any = { limit };
+      if (beforeTimestamp) {
+        options.before = beforeTimestamp;
+      }
+      
+      console.log(`Making request #${requestCount} for recently played tracks...`);
+      const response = await spotifyApi.getMyRecentlyPlayedTracks(options);
+      
+      if (response.body.items.length === 0) {
+        moreTracksAvailable = false;
+        continue;
+      }
+      
+      // Process tracks
+      for (const item of response.body.items) {
+        if (item.track && item.played_at) {
+          tracks.push({
+            uri: item.track.uri,
+            playedAt: new Date(item.played_at)
+          });
+        }
+      }
+      
+      // Get the oldest timestamp for pagination if we need more tracks
+      if (response.body.items.length > 0 && tracks.length < 100) {
+        // Get timestamp from oldest track to use as 'before' parameter
+        const oldestPlayedAt = response.body.items[response.body.items.length - 1].played_at;
+        beforeTimestamp = new Date(oldestPlayedAt).getTime();
+      } else {
+        moreTracksAvailable = false;
+      }
+      
+      console.log(`Retrieved ${tracks.length} tracks so far...`);
+    }
+    
+    // Remove duplicates (by URI)
+    const uniqueTracks = Array.from(
+      new Map(tracks.map(track => [track.uri, track])).values()
+    );
+    
+    console.log(`Retrieved ${uniqueTracks.length} unique recently played tracks`);
+    return uniqueTracks;
+  } catch (error) {
+    console.error('Error retrieving recently played tracks:', error);
+    throw error;
+  }
+}
+
 export default spotifyApi; 
