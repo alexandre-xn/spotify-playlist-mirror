@@ -18,17 +18,6 @@ function isAddedWithinLastYear(addedAt: Date): boolean {
 }
 
 /**
- * Returns true if the track was played within the last 5 days
- * @param playedAt Date when the track was last played
- * @returns Whether the track was played within the last 5 days
- */
-function isPlayedRecentlyWithinLockPeriod(playedAt: Date): boolean {
-  const fiveDaysAgo = new Date();
-  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-  return playedAt >= fiveDaysAgo;
-}
-
-/**
  * Syncs the mirror playlist to only include tracks added within the last year
  * and preserves the correct ordering by adding oldest tracks first.
  * Excludes recently played tracks (within the last 5 days).
@@ -51,13 +40,12 @@ export async function syncMirrorPlaylist(): Promise<void> {
     const recentlyPlayedTracks = await getRecentlyPlayedTracks();
     console.log(`Found ${recentlyPlayedTracks.length} recently played tracks`);
     
-    // Create a set of recently played track URIs that are still in the lock period (5 days)
+    // Create a set of the last 100 recently played track URIs
     const recentlyPlayedUris = new Set(
       recentlyPlayedTracks
-        .filter(track => isPlayedRecentlyWithinLockPeriod(track.playedAt))
         .map(track => track.uri)
     );
-    console.log(`${recentlyPlayedUris.size} tracks are in the 5-day lock period`);
+    console.log(`${recentlyPlayedUris.size} recently played tracks will be excluded`);
     
     // Get current tracks in the mirror playlist
     const mirrorTracks = await getMirrorPlaylistTracks();
@@ -110,7 +98,7 @@ export async function syncMirrorPlaylist(): Promise<void> {
       
       console.log(`Playlist updated. To see tracks in order from newest to oldest, sort by "Date added" in Spotify.`);
       if (recentlyPlayedUris.size > 0) {
-        console.log(`${recentlyPlayedUris.size} recently played tracks were excluded and will be eligible after the 5-day lock period.`);
+        console.log(`${recentlyPlayedUris.size} recently played tracks were excluded.`);
       }
     } else {
       console.log('No changes needed to mirror playlist');
